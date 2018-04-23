@@ -2,5 +2,7 @@
 
 * はじめに
 * [実現すること](untitled.md)
-* [Census API](untitled-1.md)
+* [Census API](censusapi.md)
+* [OpenShift](openshift/README.md)
+  * Untitled
 
