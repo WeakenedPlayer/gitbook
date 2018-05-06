@@ -117,9 +117,11 @@ if (!defined('awsSecretKey')) define('awsSecretKey', file_get_contents('/etc/sec
 
 
 
-めも
+## メモ
 
-当座、環境変数を使う場合
+### \(暫定処置\) 環境変数を使う場合
+
+コンフィグマップに環境変数を追加する。
 
 [https://docs.openshift.org/latest/dev\_guide/configmaps.html](https://docs.openshift.org/latest/dev_guide/configmaps.html)
 

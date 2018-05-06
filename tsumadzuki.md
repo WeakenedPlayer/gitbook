@@ -65,3 +65,105 @@ typescriptやwebpackはビルド時にインストールする必要があるも
 }
 ```
 
+## rxjs
+
+### 思った値が出てこない {#ttagatekonai}
+
+Observableの種類を間違えている可能性がある。Subscribeするタイミングが、値が生成されるタイミングより後の場合、次の値が来るまで何も得られない。もし、最後の値を使いたい場合、replayや、shareReplayを使うことで、Subscribeしたところで最後の値が取得できるようにしたい。
+
+### 最新版と以前のバージョンの互換性
+
+最新版\(v6\)は、map, flatMapのようなオペレータがなくなり、代わりにpipe関数を使って、map, flatMap等の関数をつなぐような仕様になっている。色々違うので、そのままでは古いバージョンと新しいバージョンの共存ができない。
+
+最新と旧バージョンの差については[MIGRATION.mdを参照するとよい](https://github.com/ReactiveX/rxjs/blob/master/MIGRATION.md)。大体の場合はrxjs-compatという後方互換性パッケージがあるのでそれを利用するらしい。
+
+## 外部のJavascriptライブラリを使う
+
+Google Sign-inで使用する「Google Platform Library」のように、NPMで提供されないライブラリを利用する場合、Index.htmlでライブラリをロードしておく必要がある。\(ローカルにコピーするのも手だが\)
+
+動的にロードした方が安全かもしれないので、動的にロードし準備ができるのを待つことにする。
+
+> 参考: [How to load external scripts dynamically in Angular?](https://stackoverflow.com/questions/34489916/how-to-load-external-scripts-dynamically-in-angular)
+
+```text
+import { Injectable, Optional } from '@angular/core';
+import { BehaviorSubject, Observable } from 'rxjs';
+
+const url = 'https://apis.google.com/js/platform.js';
+declare let gapi: any;
+
+export class GoogleSigninServiceConfig {
+    clientId: string;
+} 
+
+@Injectable()
+export class GoogleSigninService {
+    private _loaded: BehaviorSubject<boolean> = new BehaviorSubject( false );
+    get loaded$(): Observable<boolean> {
+        return this._loaded;
+    }
+
+    constructor( private config: GoogleSigninServiceConfig ) {
+        if( !config ) {
+            throw new Error( '[Error] Google Sign-in Service requires configuration.' );
+        }
+        this.loadScript();
+    }
+
+    private loadScript() {
+        let script = document.createElement( 'script' );
+        script.src = url;
+        script.type = 'text/javascript';
+        script.async = true;
+        script.charset = 'utf-8';
+        script.onload = () => { this.onLoad() };
+        document.getElementsByTagName( 'head' )[ 0 ].appendChild( script );
+    }
+    
+    private onLoad() {
+        gapi.load('auth2', () => {
+            gapi.auth2.init( { 'client_id': this.config.clientId } );
+            this._loaded.next( true );
+        } );
+    }
+    
+    render( element: any, options?: any ) {
+        if( !options ) {
+            options = {};
+        }
+        gapi.signin2.render( element, {
+            ...options,
+            'accesstype': 'online',
+            'onsuccess': ( user ) => { 
+                console.log( user );
+            },
+            'onfailure': ( user ) => { console.log( 'failed' ) }
+        } );
+    }
+}
+```
+
+forRootで、ClientIDも設定できるようにした。
+
+```text
+import { NgModule, ModuleWithProviders, Optional, SkipSelf } from '@angular/core';
+import { GoogleSigninButtonComponent } from './button.component';
+import { GoogleSigninService, GoogleSigninServiceConfig } from './service';
+
+@NgModule( {
+    declarations: [ GoogleSigninButtonComponent ],
+    exports:      [ GoogleSigninButtonComponent ],
+    imports: [],
+    providers: []
+} )
+export class GoogleSigninModule {
+    static forRoot( config: GoogleSigninServiceConfig ): ModuleWithProviders {
+        return {
+            ngModule: GoogleSigninModule,
+            providers: [ { provide: GoogleSigninServiceConfig, useValue: config } ]
+        };
+    }
+}
+
+```
+
